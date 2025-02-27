@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Search } from "lucide-react"
 import { useCart } from "~/lib/cart-context"
-import { type FoodCounter } from "~/types/food-types"
-import { foodCounters } from "~/lib/mock-data"
+import { ref, onValue, type DataSnapshot } from 'firebase/database';
+import { cn } from "~/lib/utils";
+import { type FoodCounter, type FoodItem } from "~/types/food-types"
 import { Input } from "~/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select"
 import { Badge } from "./ui/badge"
@@ -12,44 +13,123 @@ import { Button } from "./ui/button"
 import FoodCounterCard from "./food-counter-card"
 import CartSidebar from "~/components/cart-sidebar"
 import { ShoppingBag } from "lucide-react"
+import { database } from "~/server/firebase"
+
+// Define interfaces for Firebase data structure
+interface FirebaseFoodItem {
+  id: string;
+  name: string;
+  price: number;
+  description?: string;
+  image?: string;
+  // Add other properties as needed
+}
+
+interface FirebaseFoodCounter {
+  id?: string;
+  name: string;
+  description?: string;
+  image?: string;
+  stock: number;
+  items?: Record<string, FirebaseFoodItem> | FirebaseFoodItem[];
+}
+
+type FirebaseFoodCounters = Record<string, FirebaseFoodCounter>;
 
 export default function FoodDashboard() {
-  const [counters, setCounters] = useState<FoodCounter[]>(foodCounters)
+  const [counters, setCounters] = useState<FoodCounter[]>([])
+  const [loading, setLoading] = useState<boolean>(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [sortBy, setSortBy] = useState("default")
   const [isCartOpen, setIsCartOpen] = useState(false)
   const { cartItems, cartTotal } = useCart()
 
-  // Filter and sort food items based on search query and sort option
+  // Fetch food counters from Firebase
   useEffect(() => {
-    let filteredCounters = JSON.parse(JSON.stringify(foodCounters)) as FoodCounter[]
+    // Reference to 'foodCounters' in the database
+    const foodCountersRef = ref(database, 'foodCounters');
 
-    // Apply search filter
+    // Set up a listener for real-time updates
+    const unsubscribe = onValue(foodCountersRef, (snapshot: DataSnapshot) => {
+      const data = snapshot.val() as FirebaseFoodCounters || {};
+
+      // Convert the Firebase object to an array with IDs
+      const foodCountersList: FoodCounter[] = Object.entries(data).map(([id, counter]) => {
+        // Handle items - ensure they're always in array format
+        let itemsArray: FoodItem[] = [];
+
+        if (counter.items) {
+          if (Array.isArray(counter.items)) {
+            itemsArray = counter.items as FoodItem[];
+          } else {
+            itemsArray = Object.entries(counter.items).map(([id, item]) => ({
+              ...(item as FoodItem), // Spread item first
+              id, // Then assign id explicitly
+            }));
+          }
+        }
+
+
+        return {
+          id,
+          name: counter.name,
+          description: counter.description ?? '',
+          image: counter.image ?? '',
+          stock: counter.stock ?? 0,
+          items: itemsArray
+        };
+      });
+
+      console.log("Processed counters:", foodCountersList);
+      setCounters(foodCountersList);
+      setLoading(false);
+    });
+
+    // Clean up listener on unmount
+    return () => unsubscribe();
+  }, []);
+
+  // Filter and sort food items based on search query and sort option
+  const filteredCounters = useMemo(() => {
+    let result = [...counters]
+
+    // Apply search filter name, desc, items
     if (searchQuery) {
-      filteredCounters = filteredCounters
+      result = result
         .map((counter) => {
+          const isCounterMatch =
+            counter.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            counter.description.toLowerCase().includes(searchQuery.toLowerCase())
+
+          const filteredItems = counter.items.filter((item) =>
+            item.name.toLowerCase().includes(searchQuery.toLowerCase()),
+          )
+
+          if (isCounterMatch) {
+            return {
+              ...counter,
+              items: counter.items,
+            }
+          }
+
           return {
             ...counter,
-            items: counter.items.filter(
-              (item) =>
-                item.name.toLowerCase().includes(searchQuery.toLowerCase()),
-            ),
+            items: filteredItems,
           }
         })
         .filter((counter) => counter.items.length > 0)
     }
 
-
     // Apply sorting
     if (sortBy === "price-high") {
-      filteredCounters = filteredCounters.map((counter) => {
+      result = result.map((counter) => {
         return {
           ...counter,
           items: [...counter.items].sort((a, b) => b.price - a.price),
         }
       })
     } else if (sortBy === "price-low") {
-      filteredCounters = filteredCounters.map((counter) => {
+      result = result.map((counter) => {
         return {
           ...counter,
           items: [...counter.items].sort((a, b) => a.price - b.price),
@@ -57,8 +137,8 @@ export default function FoodDashboard() {
       })
     }
 
-    setCounters(filteredCounters)
-  }, [searchQuery, sortBy])
+    return result
+  }, [counters, searchQuery, sortBy])
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -67,7 +147,7 @@ export default function FoodDashboard() {
         <div className="p-6">
           <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <h1 className="text-3xl font-bold tracking-tight">Dagangan Kantek</h1>
+              <h1 className="text-3xl font-bold tracking-tight">Food Dashboard</h1>
               <div className="flex items-center gap-4">
                 <div className="relative w-full md:w-64">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -93,35 +173,47 @@ export default function FoodDashboard() {
                   <Button
                     variant="outline"
                     size="icon"
-                    className="relative rounded-full h-12 w-12 border-0  shadow-md"
+                    className="relative rounded-full h-12 w-12 border-0 shadow-md"
                     onClick={() => setIsCartOpen(true)}
                   >
-                    <ShoppingBag className="h-5 w-5 text-zinc-700 dark:text-zinc-300" />
+                    <ShoppingBag className="h-5 w-5" />
                     {cartItems.length > 0 && (
-                      <Badge className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0 flex items-center justify-center bg-gradient-to-r from-teal-500 to-emerald-500 text-white border-2 border-white dark:border-zinc-800">
+                      <Badge
+                        key={cartTotal} // This will force re-render only when cartTotal changes
+                        className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0 flex items-center justify-center bg-gradient-to-r from-teal-500 to-emerald-500 text-white border-2 border-white dark:border-zinc-800 animate-bounce"
+                      >
                         {cartItems.length}
                       </Badge>
                     )}
                   </Button>
                 </div>
+
+
               </div>
             </div>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {counters.map((counter) => (
-                <FoodCounterCard key={counter.id} counter={counter} />
-              ))}
 
-              {counters.length === 0 && (
-                <div className="col-span-full flex h-[300px] items-center justify-center rounded-lg border border-dashed">
-                  <div className="text-center">
-                    <h3 className="text-lg font-medium">No food items found</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Try adjusting your search or filter to find what you&apos;re looking for.
-                    </p>
+            {loading ? (
+              <div className="flex justify-center items-center h-64">
+                <p className="text-lg">Loading food counters...</p>
+              </div>
+            ) : (
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {filteredCounters.length > 0 ? (
+                  filteredCounters.map((counter) => (
+                    <FoodCounterCard key={counter.id} counter={counter} />
+                  ))
+                ) : (
+                  <div className="col-span-full flex h-[300px] items-center justify-center rounded-lg border border-dashed">
+                    <div className="text-center">
+                      <h3 className="text-lg font-medium">No food items found</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Try adjusting your search or filter to find what you&apos;re looking for.
+                      </p>
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -131,5 +223,3 @@ export default function FoodDashboard() {
     </div>
   )
 }
-
-
