@@ -1,6 +1,6 @@
 "use client"
 import * as React from "react"
-import { Calendar, Home, Inbox, Search, Settings } from "lucide-react"
+import { Calendar, Home, Inbox, Search, Settings, Utensils } from "lucide-react"
 
 import {
   Sidebar,
@@ -29,13 +29,13 @@ const data = {
 // Menu items.
 const items = [
   {
-    title: "Home",
-    url: "#",
-    icon: Home,
+    title: "Dashboard",
+    url: "/dashboard",
+    icon: Utensils,
   },
   {
-    title: "Inbox",
-    url: "#",
+    title: "Riwayat",
+    url: "/logs",
     icon: Inbox,
   },
   {
@@ -58,7 +58,7 @@ const items = [
 
 export function AppSidebar() {
   return (
-    <Sidebar>
+    <Sidebar className="bg-background">
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Application</SidebarGroupLabel>

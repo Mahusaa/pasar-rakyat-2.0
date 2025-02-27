@@ -80,7 +80,6 @@ export default function FoodDashboard() {
         };
       });
 
-      console.log("Processed counters:", foodCountersList);
       setCounters(foodCountersList);
       setLoading(false);
     });
