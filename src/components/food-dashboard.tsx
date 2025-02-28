@@ -4,7 +4,6 @@ import { useState, useEffect, useMemo } from "react"
 import { Search } from "lucide-react"
 import { useCart } from "~/lib/cart-context"
 import { ref, onValue, type DataSnapshot } from 'firebase/database';
-import { cn } from "~/lib/utils";
 import { type FoodCounter, type FoodItem } from "~/types/food-types"
 import { Input } from "~/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select"
@@ -146,7 +145,7 @@ export default function FoodDashboard() {
         <div className="p-6">
           <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <h1 className="text-3xl font-bold tracking-tight">Food Dashboard</h1>
+              <h1 className="text-3xl font-bold tracking-tight">Dagangan Kantek</h1>
               <div className="flex items-center gap-4">
                 <div className="relative w-full md:w-64">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />

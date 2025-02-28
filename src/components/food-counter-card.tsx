@@ -39,13 +39,6 @@ export default function FoodCounterCard({ counter }: FoodCounterCardProps) {
       <CardContent className="flex flex-col flex-grow p-0">
         {/* This div will take up available space and push the button to the bottom */}
         <div className="flex-grow">
-          {counter.stock <= 2 && (
-            <div className="mb-2 flex items-center gap-4 rounded-md bg-red-100 p-2 text-sm text-red-800">
-              <AlertCircle className="h-4 w-4" />
-              <span>Stok sedikit</span>
-            </div>
-          )}
-
           {isExpanded && (
             <ScrollArea className="h-[300px] px-6">
               <div className="space-y-4 pb-4">

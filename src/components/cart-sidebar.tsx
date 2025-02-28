@@ -1,11 +1,14 @@
 "use client"
 
+import { ref, runTransaction } from "firebase/database"
 import { ShoppingBag, Trash2, Minus, Plus, Utensils } from "lucide-react"
 import { useCart } from "~/lib/cart-context"
 import { Button } from "~/components/ui/button"
 import { ScrollArea } from "~/components/ui/scroll-area"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "~/components/ui/sheet"
 import { Separator } from "~/components/ui/separator"
+import { database } from "~/server/firebase"
+import { toast } from "sonner"
 
 interface CartSidebarProps {
   isOpen: boolean
@@ -15,10 +18,56 @@ interface CartSidebarProps {
 export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
   const { cartItems, removeFromCart, updateCartItemQuantity, clearCart, cartTotal, countersStock } = useCart()
 
-  const handleCheckout = () => {
-    alert(`Processing checkout for Rp ${cartTotal.toLocaleString("id-ID")}`)
-    clearCart()
-    onClose()
+
+  const handleCheckout = async () => {
+    try {
+      const failedItems: string[] = []
+      const rollbackItems: { ref: ReturnType<typeof ref>; previousStock: number }[] = []
+
+      for (const item of cartItems) {
+        const stockRef = ref(database, `foodCounters/${item.counterId}/stock`)
+
+        await runTransaction(stockRef, (currentStock) => {
+          if (currentStock === null) {
+            failedItems.push(`${item.name} tidak ada`)
+            return currentStock
+          }
+
+          if (item.quantity > currentStock) {
+            failedItems.push(`${item.name} stoknya tidak cukup! Tersisa: ${currentStock}`)
+            return currentStock
+          }
+
+          return currentStock - item.quantity // Update Stock
+        })
+      }
+
+      if (failedItems.length > 0) {
+        for (const rollback of rollbackItems) {
+          await runTransaction(rollback.ref, () => rollback.previousStock)
+        }
+
+        toast.error(`Transaksi gagal!\n${failedItems.join("\n")}`, {
+          style: {
+            background: "#f0bfb5",
+          }
+        })
+        return
+      }
+
+      toast.success(`Transaksi berhasil!\nTotal: Rp ${cartTotal.toLocaleString("id-ID")}`,
+        {
+          style: {
+            background: "#f0fdf4",
+          }
+        }
+      )
+      clearCart()
+      onClose()
+    } catch (error) {
+      const err = error as Error
+      toast.error(`Transaction failed, Error Aplication, ${err}`)
+    }
   }
 
   return (
@@ -100,17 +149,9 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
             <div className="mt-6 space-y-4">
               <Separator />
               <div className="space-y-1.5">
-                <div className="flex justify-between">
-                  <span className="font-medium">Subtotal</span>
-                  <span>Rp {cartTotal.toLocaleString("id-ID")}</span>
-                </div>
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Tax</span>
-                  <span>Rp {(cartTotal * 0.1).toLocaleString("id-ID")}</span>
-                </div>
                 <div className="flex justify-between font-bold">
                   <span>Total</span>
-                  <span>Rp {(cartTotal * 1.1).toLocaleString("id-ID")}</span>
+                  <span>Rp {cartTotal.toLocaleString("id-ID")}</span>
                 </div>
               </div>
               <div className="flex gap-2">
