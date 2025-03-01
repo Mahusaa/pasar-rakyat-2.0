@@ -11,6 +11,8 @@ export const env = createEnv({
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
+    AUTH_SECRET: z.string(),
+    ADMIN_PASS: z.string(),
   },
 
   /**
@@ -37,6 +39,8 @@ export const env = createEnv({
   runtimeEnv: {
     DATABASE_URL: process.env.DATABASE_URL,
     NODE_ENV: process.env.NODE_ENV,
+    ADMIN_PASS: process.env.ADMIN_PASS,
+    AUTH_SECRET: process.env.AUTH_SECRET,
     NEXT_PUBLIC_APIKEY: process.env.NEXT_PUBLIC_APIKEY,
     NEXT_PUBLIC_AUTHDOMAIN: process.env.NEXT_PUBLIC_AUTHDOMAIN,
     NEXT_PUBLIC_DATABASEURL: process.env.NEXT_PUBLIC_DATABASEURL,

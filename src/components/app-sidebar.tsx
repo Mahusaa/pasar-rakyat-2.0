@@ -14,6 +14,7 @@ import {
   SidebarMenuItem,
 } from "~/components/ui/sidebar"
 import { NavUser } from "./nav-user"
+import { useUser } from "~/server/auth"
 
 
 const data = {
@@ -57,6 +58,8 @@ const items = [
 ]
 
 export function AppSidebar() {
+  const { userPromise } = useUser()
+  const user = React.use(userPromise)
   return (
     <Sidebar className="bg-background">
       <SidebarContent>
@@ -79,7 +82,7 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={user!} />
       </SidebarFooter>
     </Sidebar>
   )
