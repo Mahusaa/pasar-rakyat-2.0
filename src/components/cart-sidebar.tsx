@@ -25,7 +25,6 @@ export default function CartSidebar({ isOpen, onClose, cashier }: CartSidebarPro
   const { cartItems, removeFromCart, updateCartItemQuantity, clearCart, cartTotal, countersStock } = useCart()
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("qris")
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const router = useRouter();
 
 
   const handleCheckout = async () => {
@@ -48,12 +47,17 @@ export default function CartSidebar({ isOpen, onClose, cashier }: CartSidebarPro
             failedItems.push(`${item.name} stoknya tidak cukup! Tersisa: ${currentStock}`)
             return currentStock
           }
+
+          // 🔥 Push rollback data BEFORE stock updated
+          rollbackItems.push({ ref: stockRef, previousStock: currentStock as number })
+
           menu.push(item.name)
-          return currentStock - item.quantity // Update Stock
+          return currentStock - item.quantity // Update stock
         })
       }
 
       if (failedItems.length > 0) {
+        // 🔥 Rollback transaction
         for (const rollback of rollbackItems) {
           await runTransaction(rollback.ref, () => rollback.previousStock)
         }
@@ -66,6 +70,7 @@ export default function CartSidebar({ isOpen, onClose, cashier }: CartSidebarPro
         setIsLoading(false)
         return
       }
+
       await fetch("/api/orders", {
         method: "POST",
         headers: {
