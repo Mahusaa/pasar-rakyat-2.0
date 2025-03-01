@@ -1,7 +1,9 @@
 "use client"
 
 import { ref, runTransaction } from "firebase/database"
-import { ShoppingBag, Trash2, Minus, Plus, Utensils } from "lucide-react"
+import { Label } from "./ui/label"
+import { useState } from "react"
+import { ShoppingBag, Trash2, Minus, Plus, Utensils, Banknote, CreditCard, QrCode, Loader2 } from "lucide-react"
 import { useCart } from "~/lib/cart-context"
 import { Button } from "~/components/ui/button"
 import { ScrollArea } from "~/components/ui/scroll-area"
@@ -9,17 +11,26 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "~/components/ui/sh
 import { Separator } from "~/components/ui/separator"
 import { database } from "~/server/firebase"
 import { toast } from "sonner"
+import { RadioGroup, RadioGroupItem } from "./ui/radio-group"
+import { useRouter } from "next/navigation"
 
 interface CartSidebarProps {
   isOpen: boolean
   onClose: () => void
+  cashier: string
 }
+type PaymentMethod = "cash" | "qris" | "transfer"
 
-export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
+export default function CartSidebar({ isOpen, onClose, cashier }: CartSidebarProps) {
   const { cartItems, removeFromCart, updateCartItemQuantity, clearCart, cartTotal, countersStock } = useCart()
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("qris")
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const router = useRouter();
 
 
   const handleCheckout = async () => {
+    const menu: string[] = [];
+    setIsLoading(true)
     try {
       const failedItems: string[] = []
       const rollbackItems: { ref: ReturnType<typeof ref>; previousStock: number }[] = []
@@ -37,7 +48,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
             failedItems.push(`${item.name} stoknya tidak cukup! Tersisa: ${currentStock}`)
             return currentStock
           }
-
+          menu.push(item.name)
           return currentStock - item.quantity // Update Stock
         })
       }
@@ -52,8 +63,22 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
             background: "#f0bfb5",
           }
         })
+        setIsLoading(false)
         return
       }
+      await fetch("/api/orders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          amount: cartTotal,
+          paymentMethod,
+          cashier,
+          menu,
+        }),
+      })
+      setIsLoading(false)
 
       toast.success(`Transaksi berhasil!\nTotal: Rp ${cartTotal.toLocaleString("id-ID")}`,
         {
@@ -66,6 +91,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
       onClose()
     } catch (error) {
       const err = error as Error
+      setIsLoading(false)
       toast.error(`Transaction failed, Error Aplication, ${err}`)
     }
   }
@@ -154,12 +180,60 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                   <span>Rp {cartTotal.toLocaleString("id-ID")}</span>
                 </div>
               </div>
+              {/* Payment Method Selection */}
+              <div className="space-y-2">
+                <h4 className="font-medium">Payment Method</h4>
+                <RadioGroup value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}>
+                  <div className="flex flex-col gap-2">
+                    <Label
+                      htmlFor="cash"
+                      className={`flex items-center space-x-2 rounded-md border p-3 cursor-pointer hover:bg-accent ${paymentMethod === "cash" ? "bg-accent border-primary" : ""}`}
+                      onClick={() => setPaymentMethod("cash")}
+                    >
+                      <RadioGroupItem value="cash" id="cash" />
+                      <div className="flex items-center gap-2 cursor-pointer flex-1">
+                        <Banknote className="h-4 w-4" />
+                        <span>Cash</span>
+                      </div>
+                    </Label>
+
+                    <Label
+                      htmlFor="qris"
+                      className={`flex items-center space-x-2 rounded-md border p-3 cursor-pointer hover:bg-accent ${paymentMethod === "qris" ? "bg-accent border-primary" : ""}`}
+                      onClick={() => setPaymentMethod("qris")}
+                    >
+                      <RadioGroupItem value="qris" id="qris" />
+                      <div className="flex items-center gap-2 cursor-pointer flex-1">
+                        <QrCode className="h-4 w-4" />
+                        <span>QRIS</span>
+                      </div>
+                    </Label>
+
+                    <Label
+                      htmlFor="transfer"
+                      className={`flex items-center space-x-2 rounded-md border p-3 cursor-pointer hover:bg-accent ${paymentMethod === "transfer" ? "bg-accent border-primary" : ""}`}
+                      onClick={() => setPaymentMethod("transfer")}
+                    >
+                      <RadioGroupItem value="transfer" id="transfer" />
+                      <div className="flex items-center gap-2 cursor-pointer flex-1">
+                        <CreditCard className="h-4 w-4" />
+                        <span>Bank Transfer</span>
+                      </div>
+                    </Label>
+                  </div>
+                </RadioGroup>
+              </div>
               <div className="flex gap-2">
                 <Button variant="outline" className="flex-1" onClick={clearCart}>
                   Clear Cart
                 </Button>
-                <Button className="flex-1" onClick={handleCheckout}>
-                  Checkout
+                <Button className="flex-1" onClick={handleCheckout} disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="animate-spin mr-2 h-4 w-4" />
+                      Loading...
+                    </>
+                  ) : "Checkout"}
                 </Button>
               </div>
             </div>

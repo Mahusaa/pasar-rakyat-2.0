@@ -1,6 +1,7 @@
 "use client"
 import * as React from "react"
-import { Calendar, Home, Inbox, Search, Settings, Utensils } from "lucide-react"
+import { Utensils, FileClock, ShoppingBag } from "lucide-react"
+import { Suspense } from "react"
 
 import {
   Sidebar,
@@ -8,23 +9,13 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
+  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "~/components/ui/sidebar"
 import { NavUser } from "./nav-user"
 import { useUser } from "~/server/auth"
-
-
-const data = {
-  user:
-  {
-    name: "kevin diks",
-    email: "kevin@gmail.com",
-    avatar: "/avatars/shadcn.jpg",
-  }
-}
 
 
 // Menu items.
@@ -37,22 +28,7 @@ const items = [
   {
     title: "Riwayat",
     url: "/logs",
-    icon: Inbox,
-  },
-  {
-    title: "Calendar",
-    url: "#",
-    icon: Calendar,
-  },
-  {
-    title: "Search",
-    url: "#",
-    icon: Search,
-  },
-  {
-    title: "Settings",
-    url: "#",
-    icon: Settings,
+    icon: FileClock,
   },
 
 ]
@@ -61,10 +37,24 @@ export function AppSidebar() {
   const { userPromise } = useUser()
   const user = React.use(userPromise)
   return (
-    <Sidebar className="bg-background">
+    <Sidebar>
+      <SidebarHeader>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="lg" >
+              <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white p-3 rounded-xl shadow-lg shadow-orange-200/80  border border-orange-300/20">
+                <ShoppingBag className="h-4 w-4" />
+              </div>
+              <div className="flex flex-col gap-0.5 leading-none">
+                <span className="text-xl font-bold text-orange-950 tracking-tight">Pasar Rakyat</span>
+                <span className="">v2.0.0</span>
+              </div>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Application</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => (
@@ -82,7 +72,11 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={user!} />
+        {user && (
+          <Suspense fallback={<div>Loading user...</div>}>
+            <NavUser user={user} />
+          </Suspense>
+        )}
       </SidebarFooter>
     </Sidebar>
   )

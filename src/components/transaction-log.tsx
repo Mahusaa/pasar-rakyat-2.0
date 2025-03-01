@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useActionState, startTransition, use, useEffect } from "react"
 import { CalendarIcon, Check, Download, Filter, Search } from "lucide-react"
 import { format } from "date-fns"
 import { jsPDF } from "jspdf"
@@ -8,115 +8,69 @@ import autoTable from "jspdf-autotable"
 
 import { Button } from "~/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card"
+import { useUser } from "~/server/auth"
 import { Input } from "~/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table"
 import { Badge } from "~/components/ui/badge"
 import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover"
 import { Calendar } from "~/components/ui/calendar"
+import type { Order } from "~/server/db/schema"
+import { ScrollArea } from "./ui/scroll-area"
+import { updatePaymentStatus } from "~/actions/payment-status"
+import type { ActionResponse } from "~/actions/payment-status"
 
-// Sample transaction data
-const transactions = [
-  {
-    id: "T001",
-    customerName: "John Doe",
-    menuItems: ["Fried Chicken", "Cola"],
-    cashier: 1,
-    paymentMethod: "Cash",
-    time: new Date("2023-06-15T12:30:45"),
-    totalAmount: 45000,
-    status: "completed",
-  },
-  {
-    id: "T002",
-    customerName: "Jane Smith",
-    menuItems: ["Burger", "Fries", "Milkshake"],
-    cashier: 2,
-    paymentMethod: "QRIS",
-    time: new Date("2023-06-15T13:15:22"),
-    totalAmount: 65000,
-    status: "pending",
-  },
-  {
-    id: "T003",
-    customerName: "Robert Johnson",
-    menuItems: ["Pizza", "Garlic Bread", "Soda"],
-    cashier: 3,
-    paymentMethod: "Credit Card",
-    time: new Date("2023-06-15T14:20:33"),
-    totalAmount: 120000,
-    status: "completed",
-  },
-  {
-    id: "T004",
-    customerName: "Emily Davis",
-    menuItems: ["Salad", "Iced Tea"],
-    cashier: 1,
-    paymentMethod: "QRIS",
-    time: new Date("2023-06-15T15:05:17"),
-    totalAmount: 35000,
-    status: "pending",
-  },
-  {
-    id: "T005",
-    customerName: "Michael Wilson",
-    menuItems: ["Steak", "Mashed Potatoes", "Wine"],
-    cashier: 4,
-    paymentMethod: "Cash",
-    time: new Date("2023-06-15T18:30:55"),
-    totalAmount: 250000,
-    status: "completed",
-  },
-]
+const initialState: ActionResponse = {
+  success: false,
+  message: '',
+}
 
-export default function TransactionLog() {
+
+export default function TransactionLog({ orders }: { orders: Order[] }) {
+  const { userPromise } = useUser()
+  const user = use(userPromise)
+  const [state, statusAction, isPending] = useActionState(updatePaymentStatus, initialState)
   const [searchTerm, setSearchTerm] = useState("")
   const [cashierFilter, setCashierFilter] = useState("all")
   const [paymentFilter, setPaymentFilter] = useState("all")
   const [date, setDate] = useState<Date | undefined>(undefined)
-  const [filteredTransactions, setFilteredTransactions] = useState(transactions)
+  const [filteredTransactions, setFilteredTransactions] = useState(orders)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
 
-  // Function to confirm QRIS payment
-  const confirmQrisPayment = (id: string) => {
-    setFilteredTransactions(
-      filteredTransactions.map((transaction) =>
-        transaction.id === id ? { ...transaction, status: "completed" } : transaction,
-      ),
+
+  // Calculate pagination values
+  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const currentTransactions = filteredTransactions.slice(startIndex, endIndex)
+
+  const goToPage = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)))
+  }
+
+  // Handle items per page changes
+  const handleItemsPerPageChange = (value: string) => {
+    setItemsPerPage(Number(value))
+    setCurrentPage(1) // Reset to first page when changing items per page
+  }
+
+  const confirmQrisPayment = async (id: number) => {
+    startTransition(() => {
+      statusAction(id)
+    })
+  }
+
+  const filteredLogs = orders.filter(order => {
+    const isMenuMatch = searchTerm === "" || order.menu.some((menuItem) =>
+      menuItem.toLowerCase().includes(searchTerm.toLowerCase())
     )
-  }
+    const isCashierMatch = cashierFilter === "all" || order.cashier === cashierFilter
+    const isPaymentMatch = paymentFilter === "all" || order.paymentMethod.toLowerCase() === paymentFilter.toLowerCase()
+    const isDateMatch = !date || format(order.time ?? new Date(), "yyyy-MM-dd") === format(date, "yyyy-MM-dd")
 
-  // Function to apply filters
-  const applyFilters = () => {
-    let filtered = transactions
-
-    // Apply search filter
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (transaction) =>
-          transaction.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          transaction.id.toLowerCase().includes(searchTerm.toLowerCase()),
-      )
-    }
-
-    // Apply cashier filter
-    if (cashierFilter !== "all") {
-      filtered = filtered.filter((transaction) => transaction.cashier === Number.parseInt(cashierFilter))
-    }
-
-    // Apply payment method filter
-    if (paymentFilter !== "all") {
-      filtered = filtered.filter(
-        (transaction) => transaction.paymentMethod.toLowerCase() === paymentFilter.toLowerCase(),
-      )
-    }
-
-    // Apply date filter
-    if (date) {
-      filtered = filtered.filter((transaction) => format(transaction.time, "yyyy-MM-dd") === format(date, "yyyy-MM-dd"))
-    }
-
-    setFilteredTransactions(filtered)
-  }
+    return isCashierMatch && isPaymentMatch && isDateMatch && isMenuMatch
+  })
 
   // Format currency
   const formatCurrency = (amount: number) => {
@@ -126,30 +80,26 @@ export default function TransactionLog() {
   // Function to export transactions to PDF
   const exportToPDF = () => {
     const doc = new jsPDF()
-
-    // Add title
     doc.setFontSize(18)
     doc.text("Transaction Logs", 14, 22)
-
     // Add date
     doc.setFontSize(11)
     doc.text(`Generated on: ${format(new Date(), "PPP")}`, 14, 30)
 
     // Format data for the table
-    const tableData = filteredTransactions.map((transaction) => [
-      transaction.id,
-      transaction.customerName,
-      transaction.menuItems.join(", "),
-      `Cashier ${transaction.cashier}`,
-      transaction.paymentMethod,
-      format(transaction.time, "HH:mm:ss, dd MMM yyyy"),
-      formatCurrency(transaction.totalAmount),
-      transaction.status === "completed" ? "Completed" : "Pending",
+    const tableData = filteredLogs.map((order) => [
+      order.id,
+      order.cashier,
+      order.menu,
+      order.paymentMethod,
+      format(order.time, "HH:mm:ss, dd MMM yyyy"),
+      formatCurrency(Number(order.amount)),
+      order.status,
     ])
 
     // Add table
     autoTable(doc, {
-      head: [["ID", "Customer", "Menu Items", "Cashier", "Payment", "Time", "Amount", "Status"]],
+      head: [["ID", "Kasir", "Menu Items", "Payment", "Time", "Amount", "Status"]],
       body: tableData,
       startY: 40,
       theme: "grid",
@@ -168,7 +118,7 @@ export default function TransactionLog() {
           <div className="flex flex-col">
             <div className="flex items-center justify-between">
               <h1 className="text-3xl font-bold tracking-tight">Transaction Logs</h1>
-              <Button variant="outline" size="sm" onClick={exportToPDF}>
+              <Button variant="default" size="sm" onClick={exportToPDF}>
                 <Download className="mr-2 h-4 w-4" />
                 Export to PDF
               </Button>
@@ -187,7 +137,7 @@ export default function TransactionLog() {
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                       type="search"
-                      placeholder="Search by name"
+                      placeholder="Search by menu"
                       className="pl-8 w-full"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
@@ -199,11 +149,11 @@ export default function TransactionLog() {
                       <SelectValue placeholder="Cashier" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Cashiers</SelectItem>
-                      <SelectItem value="1">Cashier 1</SelectItem>
-                      <SelectItem value="2">Cashier 2</SelectItem>
-                      <SelectItem value="3">Cashier 3</SelectItem>
-                      <SelectItem value="4">Cashier 4</SelectItem>
+                      <SelectItem value="all">Semua Kasir</SelectItem>
+                      <SelectItem value="Kasir 1">Kasir 1</SelectItem>
+                      <SelectItem value="Kasir 2">Kasir 2</SelectItem>
+                      <SelectItem value="Kasir 3">Kasir 3</SelectItem>
+                      <SelectItem value="Kasir 4">Kasir 4</SelectItem>
                     </SelectContent>
                   </Select>
 
@@ -215,7 +165,7 @@ export default function TransactionLog() {
                       <SelectItem value="all">All Methods</SelectItem>
                       <SelectItem value="cash">Cash</SelectItem>
                       <SelectItem value="qris">QRIS</SelectItem>
-                      <SelectItem value="credit card">Credit Card</SelectItem>
+                      <SelectItem value="transfer">Transfer</SelectItem>
                     </SelectContent>
                   </Select>
 
@@ -233,11 +183,6 @@ export default function TransactionLog() {
                     </PopoverContent>
                   </Popover>
                 </div>
-
-                <Button onClick={applyFilters} className="mt-0 md:mt-0 w-full md:w-auto">
-                  <Filter className="mr-2 h-4 w-4" />
-                  Apply Filters
-                </Button>
               </div>
             </CardContent>
           </Card>
@@ -245,74 +190,80 @@ export default function TransactionLog() {
           <Card>
             <CardHeader>
               <CardTitle>Transaction History</CardTitle>
-              <CardDescription>Showing {filteredTransactions.length} transactions</CardDescription>
+              <CardDescription>Showing {filteredLogs.length} transactions</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>ID</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Menu Items</TableHead>
-                      <TableHead>Cashier</TableHead>
-                      <TableHead>Payment</TableHead>
-                      <TableHead>Time</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredTransactions.map((transaction) => (
-                      <TableRow key={transaction.id}>
-                        <TableCell className="font-medium">{transaction.id}</TableCell>
-                        <TableCell>{transaction.customerName}</TableCell>
-                        <TableCell>
-                          <div className="flex flex-col space-y-1">
-                            {transaction.menuItems.map((item, index) => (
-                              <span key={index}>{item}</span>
-                            ))}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">Cashier {transaction.cashier}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={transaction.paymentMethod === "QRIS" ? "secondary" : "outline"}>
-                            {transaction.paymentMethod}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{format(transaction.time, "HH:mm:ss, dd MMM yyyy")}</TableCell>
-                        <TableCell>{formatCurrency(transaction.totalAmount)}</TableCell>
-                        <TableCell>
-                          <Badge
-                            className={
-                              transaction.status === "completed"
-                                ? "bg-green-100 text-green-800 hover:bg-green-100"
-                                : "bg-yellow-100 text-yellow-800 hover:bg-yellow-100"
-                            }
-                          >
-                            {transaction.status === "completed" ? "Completed" : "Pending"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {transaction.paymentMethod === "QRIS" && transaction.status === "pending" && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="flex items-center"
-                              onClick={() => confirmQrisPayment(transaction.id)}
-                            >
-                              <Check className="mr-1 h-4 w-4" />
-                              Confirm
-                            </Button>
+              <div className="border rounded-md">
+                <div className="w-full">
+                  <ScrollArea className="h-[300px]">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>ID</TableHead>
+                          <TableHead>Kasir</TableHead>
+                          <TableHead>Menu Items</TableHead>
+                          <TableHead>Payment</TableHead>
+                          <TableHead>Time</TableHead>
+                          <TableHead>Amount</TableHead>
+                          <TableHead>Status</TableHead>
+                          {user?.role === "owner" && (
+                            <TableHead>Action</TableHead>
                           )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredLogs.map((order) => (
+                          <TableRow key={order.id}>
+                            <TableCell className="font-medium">{order.id}</TableCell>
+                            <TableCell><Badge variant="outline">{order.cashier}</Badge></TableCell>
+                            <TableCell>
+                              <div className="flex flex-col space-y-1">
+                                {order.menu.map((item, index) => (
+                                  <span key={index}>{item}</span>
+                                ))}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="secondary">
+                                {order.paymentMethod}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{format(order.time, "HH:mm:ss, dd MMM yyyy")}</TableCell>
+                            <TableCell>{formatCurrency(Number(order.amount))}</TableCell>
+                            <TableCell>
+                              <Badge
+                                className={
+                                  order.status === "completed"
+                                    ? "bg-green-100 text-green-800 hover:bg-green-100"
+                                    : "bg-yellow-100 text-yellow-800 hover:bg-yellow-100"
+                                }
+                              >
+                                {order.status}
+                              </Badge>
+                            </TableCell>
+                            {user?.role === "owner" && (
+                              <TableCell>
+                                {order.paymentMethod !== "cash" && order.status !== "completed" && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="flex items-center"
+                                    onClick={() => confirmQrisPayment(order.id)}
+                                    disabled={isPending}
+                                  >
+                                    <Check className="mr-1 h-4 w-4" />
+                                    Confirm
+                                  </Button>
+                                )}
+                              </TableCell>
+
+                            )}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
+                </div>
               </div>
             </CardContent>
           </Card>

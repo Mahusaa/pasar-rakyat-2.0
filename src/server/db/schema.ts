@@ -7,6 +7,7 @@ import {
   text,
   timestamp,
   varchar,
+  numeric,
 } from "drizzle-orm/pg-core";
 
 /**
@@ -31,5 +32,19 @@ export const users = createTable(
 );
 
 
+export const logs = createTable(
+  "logs", {
+  id: serial("id").primaryKey(),
+  cashier: varchar("cashier", { length: 20 }).notNull(),
+  menu: text("menu").array().notNull(),
+  paymentMethod: varchar("payment_method", { length: 50 }).notNull(),
+  amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+  status: varchar("status", { length: 20 }).notNull(),
+  time: timestamp("time").notNull(),
+}
+)
+
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
+export type Order = typeof logs.$inferSelect;

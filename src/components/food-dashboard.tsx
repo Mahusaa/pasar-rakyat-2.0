@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { use, useState, useEffect, useMemo } from "react"
 import { Search } from "lucide-react"
 import { useCart } from "~/lib/cart-context"
 import { ref, onValue, type DataSnapshot } from 'firebase/database';
@@ -12,6 +12,7 @@ import { Button } from "./ui/button"
 import FoodCounterCard from "./food-counter-card"
 import CartSidebar from "~/components/cart-sidebar"
 import { ShoppingBag } from "lucide-react"
+import { useUser } from "~/server/auth";
 import { database } from "~/server/firebase"
 
 // Define interfaces for Firebase data structure
@@ -42,6 +43,9 @@ export default function FoodDashboard() {
   const [sortBy, setSortBy] = useState("default")
   const [isCartOpen, setIsCartOpen] = useState(false)
   const { cartItems, cartTotal } = useCart()
+  const { userPromise } = useUser()
+  const user = use(userPromise)
+
 
   // Fetch food counters from Firebase
   useEffect(() => {
@@ -217,7 +221,7 @@ export default function FoodDashboard() {
       </div>
 
       {/* Cart sidebar */}
-      <CartSidebar isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
+      <CartSidebar isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} cashier={user?.name ?? "unknown"} />
     </div>
   )
 }
