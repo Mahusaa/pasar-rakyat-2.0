@@ -42,11 +42,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }
 
   const addToCart = (item: CartItem) => {
-    // Check if there's enough stock
-    if ((countersStock[item.counterId] ?? 0) < item.quantity) {
-      alert("Not enough stock available!")
-      return
-    }
 
     setCartItems((prevItems) => {
       // Check if item already exists in cart
