@@ -8,6 +8,7 @@ import {
   timestamp,
   varchar,
   numeric,
+  integer,
 } from "drizzle-orm/pg-core";
 
 /**
@@ -35,14 +36,15 @@ export const users = createTable(
 export const logs = createTable(
   "logs", {
   id: serial("id").primaryKey(),
+  counterId: varchar("counter_id").notNull(),
+  food: varchar("food").notNull(),
   cashier: varchar("cashier", { length: 20 }).notNull(),
-  menu: text("menu").array().notNull(),
   paymentMethod: varchar("payment_method", { length: 50 }).notNull(),
-  amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+  quantity: integer("quantity").notNull(),
+  amount: integer("amount").notNull(),
   status: varchar("status", { length: 20 }).notNull(),
-  time: timestamp("time").notNull(),
-}
-)
+  time: timestamp("time").defaultNow().notNull(),
+})
 
 
 export type User = typeof users.$inferSelect;

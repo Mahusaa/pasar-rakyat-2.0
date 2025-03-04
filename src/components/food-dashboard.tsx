@@ -14,6 +14,8 @@ import CartSidebar from "~/components/cart-sidebar"
 import { ShoppingBag } from "lucide-react"
 import { useUser } from "~/server/auth";
 import { database } from "~/server/firebase"
+import { ScrollArea } from "@radix-ui/react-scroll-area";
+import { foodCounters } from "~/lib/mock-data";
 
 // Define interfaces for Firebase data structure
 interface FirebaseFoodItem {
@@ -22,7 +24,7 @@ interface FirebaseFoodItem {
   price: number;
   description?: string;
   image?: string;
-  // Add other properties as needed
+  disabled: boolean;
 }
 
 interface FirebaseFoodCounter {
@@ -32,6 +34,7 @@ interface FirebaseFoodCounter {
   image?: string;
   stock: number;
   items?: Record<string, FirebaseFoodItem> | FirebaseFoodItem[];
+  disabled: boolean;
 }
 
 type FirebaseFoodCounters = Record<string, FirebaseFoodCounter>;
@@ -47,7 +50,6 @@ export default function FoodDashboard() {
   const user = use(userPromise)
 
 
-  // Fetch food counters from Firebase
   useEffect(() => {
     // Reference to 'foodCounters' in the database
     const foodCountersRef = ref(database, 'foodCounters');
@@ -67,7 +69,8 @@ export default function FoodDashboard() {
           } else {
             itemsArray = Object.entries(counter.items).map(([id, item]) => ({
               ...(item as FoodItem), // Spread item first
-              id, // Then assign id explicitly
+              id,
+              counterId: item.id
             }));
           }
         }
@@ -79,7 +82,8 @@ export default function FoodDashboard() {
           description: counter.description ?? '',
           image: counter.image ?? '',
           stock: counter.stock ?? 0,
-          items: itemsArray
+          items: itemsArray,
+          disabled: counter.disabled ?? false,
         };
       });
 
@@ -143,14 +147,14 @@ export default function FoodDashboard() {
   }, [counters, searchQuery, sortBy])
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen bg-background">
       {/* Main content */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-hidden">
         <div className="p-6">
           <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <h1 className="text-3xl font-bold tracking-tight">Dagangan Kantek</h1>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 ">
                 <div className="relative w-full md:w-64">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -194,28 +198,32 @@ export default function FoodDashboard() {
               </div>
             </div>
 
-            {loading ? (
-              <div className="flex justify-center items-center h-64">
-                <p className="text-lg">Loading food counters...</p>
-              </div>
-            ) : (
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {filteredCounters.length > 0 ? (
-                  filteredCounters.map((counter) => (
-                    <FoodCounterCard key={counter.id} counter={counter} />
-                  ))
-                ) : (
-                  <div className="col-span-full flex h-[300px] items-center justify-center rounded-lg border border-dashed">
-                    <div className="text-center">
-                      <h3 className="text-lg font-medium">No food items found</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Try adjusting your search or filter to find what you&apos;re looking for.
-                      </p>
+
+            <ScrollArea className="h-[calc(100vh-6rem)] overflow-y-auto scrollbar-thin ">
+
+              {loading ? (
+                <div className="flex justify-center items-center h-64">
+                  <p className="text-lg">Loading food counters...</p>
+                </div>
+              ) : (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {filteredCounters.length > 0 ? (
+                    filteredCounters.map((counter) => (
+                      <FoodCounterCard key={counter.id} counter={counter} />
+                    ))
+                  ) : (
+                    <div className="col-span-full flex h-[300px] items-center justify-center rounded-lg border border-dashed">
+                      <div className="text-center">
+                        <h3 className="text-lg font-medium">No food items found</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Try adjusting your search or filter to find what you&apos;re looking for.
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            )}
+                  )}
+                </div>
+              )}
+            </ScrollArea>
           </div>
         </div>
       </div>

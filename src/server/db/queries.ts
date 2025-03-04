@@ -3,6 +3,7 @@ import { db } from '.';
 import { cookies } from 'next/headers';
 import { logs, users } from './schema';
 import { verifyToken } from '../auth/session';
+import { type CartItem } from '~/types/food-types';
 
 
 export async function getUser() {
@@ -32,16 +33,22 @@ export async function getUser() {
   return user[0];
 }
 
-export async function postOrder(amount: number, paymentMethod: string, cashier: string, menu: string[]) {
+export async function postOrder(cartItems: CartItem[], cashier: string, paymentMethod: string) {
   const status = paymentMethod !== "cash" ? "pending" : "completed"
-  await db.insert(logs).values({
+  if (cartItems.length === 0) return;
+
+  const logData = cartItems.map((item) => ({
+    counterId: String(item.id).split("-")[0] ?? "",
+    food: item.name,
     cashier,
     paymentMethod,
-    menu,
-    amount: String(amount),
+    quantity: item.quantity,
+    amount: item.price * item.quantity,
     status,
     time: new Date(),
-  });
+  }));
+
+  await db.insert(logs).values(logData);
 }
 
 export async function getOrders() {

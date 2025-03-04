@@ -15,6 +15,7 @@ interface FoodMenuItemProps {
 
 export default function FoodMenuItem({ item, counterId, counterStock }: FoodMenuItemProps) {
   const { addToCart } = useCart()
+  console.log(counterId, "from foodmenmuitem")
   const [quantity, setQuantity] = useState(1)
 
   const handleAddToCart = () => {

@@ -3,6 +3,8 @@ export interface FoodItem {
   name: string
   price: number
   image?: string
+  counterId: string
+  disabled: boolean;
 }
 
 export interface FoodCounter {
@@ -12,10 +14,11 @@ export interface FoodCounter {
   image?: string
   stock: number
   items: FoodItem[]
+  disabled: boolean;
 }
 
 export interface CartItem extends FoodItem {
-  counterId: string
+  counterId: string;
   quantity: number
 }
 

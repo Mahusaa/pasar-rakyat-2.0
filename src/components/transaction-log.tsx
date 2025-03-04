@@ -62,14 +62,12 @@ export default function TransactionLog({ orders }: { orders: Order[] }) {
   }
 
   const filteredLogs = orders.filter(order => {
-    const isMenuMatch = searchTerm === "" || order.menu.some((menuItem) =>
-      menuItem.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    const isIDMatch = searchTerm === "" || order.counterId.toLowerCase().includes(searchTerm.toLowerCase());
     const isCashierMatch = cashierFilter === "all" || order.cashier === cashierFilter
     const isPaymentMatch = paymentFilter === "all" || order.paymentMethod.toLowerCase() === paymentFilter.toLowerCase()
     const isDateMatch = !date || format(order.time ?? new Date(), "yyyy-MM-dd") === format(date, "yyyy-MM-dd")
 
-    return isCashierMatch && isPaymentMatch && isDateMatch && isMenuMatch
+    return isCashierMatch && isPaymentMatch && isDateMatch && isIDMatch
   })
 
   // Format currency
@@ -88,18 +86,19 @@ export default function TransactionLog({ orders }: { orders: Order[] }) {
 
     // Format data for the table
     const tableData = filteredLogs.map((order) => [
-      order.id,
+      order.counterId,
       order.cashier,
-      order.menu,
+      order.food,
+      order.quantity,
+      formatCurrency(Number(order.amount)),
       order.paymentMethod,
       format(order.time, "HH:mm:ss, dd MMM yyyy"),
-      formatCurrency(Number(order.amount)),
       order.status,
     ])
 
     // Add table
     autoTable(doc, {
-      head: [["ID", "Kasir", "Menu Items", "Payment", "Time", "Amount", "Status"]],
+      head: [["ID", "Kasir", "Menu", "Qty", "Amount", "Payment", "Status", "Time"]],
       body: tableData,
       startY: 40,
       theme: "grid",
@@ -137,7 +136,7 @@ export default function TransactionLog({ orders }: { orders: Order[] }) {
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                       type="search"
-                      placeholder="Search by menu"
+                      placeholder="Search by ID"
                       className="pl-8 w-full"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
@@ -201,11 +200,12 @@ export default function TransactionLog({ orders }: { orders: Order[] }) {
                         <TableRow>
                           <TableHead>ID</TableHead>
                           <TableHead>Kasir</TableHead>
-                          <TableHead>Menu Items</TableHead>
-                          <TableHead>Payment</TableHead>
-                          <TableHead>Time</TableHead>
+                          <TableHead>Menu</TableHead>
+                          <TableHead>Qty</TableHead>
                           <TableHead>Amount</TableHead>
+                          <TableHead>Payment</TableHead>
                           <TableHead>Status</TableHead>
+                          <TableHead>Time</TableHead>
                           {user?.role === "owner" && (
                             <TableHead>Action</TableHead>
                           )}
@@ -214,22 +214,18 @@ export default function TransactionLog({ orders }: { orders: Order[] }) {
                       <TableBody>
                         {filteredLogs.map((order) => (
                           <TableRow key={order.id}>
-                            <TableCell className="font-medium">{order.id}</TableCell>
+                            <TableCell className="font-medium">{order.counterId}</TableCell>
                             <TableCell><Badge variant="outline">{order.cashier}</Badge></TableCell>
-                            <TableCell>
-                              <div className="flex flex-col space-y-1">
-                                {order.menu.map((item, index) => (
-                                  <span key={index}>{item}</span>
-                                ))}
-                              </div>
+                            <TableCell>{order.food}
                             </TableCell>
+                            <TableCell>{order.quantity}
+                            </TableCell>
+                            <TableCell>{formatCurrency(Number(order.amount))}</TableCell>
                             <TableCell>
                               <Badge variant="secondary">
                                 {order.paymentMethod}
                               </Badge>
                             </TableCell>
-                            <TableCell>{format(order.time, "HH:mm:ss, dd MMM yyyy")}</TableCell>
-                            <TableCell>{formatCurrency(Number(order.amount))}</TableCell>
                             <TableCell>
                               <Badge
                                 className={
@@ -241,6 +237,7 @@ export default function TransactionLog({ orders }: { orders: Order[] }) {
                                 {order.status}
                               </Badge>
                             </TableCell>
+                            <TableCell>{format(order.time, "HH:mm:ss, dd MMM yyyy")}</TableCell>
                             {user?.role === "owner" && (
                               <TableCell>
                                 {order.paymentMethod !== "cash" && order.status !== "completed" && (

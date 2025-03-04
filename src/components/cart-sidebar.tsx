@@ -12,7 +12,6 @@ import { Separator } from "~/components/ui/separator"
 import { database } from "~/server/firebase"
 import { toast } from "sonner"
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group"
-import { useRouter } from "next/navigation"
 
 interface CartSidebarProps {
   isOpen: boolean
@@ -22,7 +21,7 @@ interface CartSidebarProps {
 type PaymentMethod = "cash" | "qris" | "transfer"
 
 export default function CartSidebar({ isOpen, onClose, cashier }: CartSidebarProps) {
-  const { cartItems, removeFromCart, updateCartItemQuantity, clearCart, cartTotal, countersStock } = useCart()
+  const { cartItems, removeFromCart, updateCartItemQuantity, clearCart, cartTotal } = useCart()
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("qris")
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
@@ -36,6 +35,7 @@ export default function CartSidebar({ isOpen, onClose, cashier }: CartSidebarPro
 
       for (const item of cartItems) {
         const stockRef = ref(database, `foodCounters/${item.counterId}/stock`)
+        console.log(stockRef)
 
         await runTransaction(stockRef, (currentStock) => {
           if (currentStock === null) {
@@ -57,7 +57,6 @@ export default function CartSidebar({ isOpen, onClose, cashier }: CartSidebarPro
       }
 
       if (failedItems.length > 0) {
-        // 🔥 Rollback transaction
         for (const rollback of rollbackItems) {
           await runTransaction(rollback.ref, () => rollback.previousStock)
         }
@@ -77,10 +76,9 @@ export default function CartSidebar({ isOpen, onClose, cashier }: CartSidebarPro
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          amount: cartTotal,
-          paymentMethod,
+          cartItems,
           cashier,
-          menu,
+          paymentMethod,
         }),
       })
       setIsLoading(false)
@@ -163,7 +161,7 @@ export default function CartSidebar({ isOpen, onClose, cashier }: CartSidebarPro
                             size="icon"
                             className="h-6 w-6"
                             onClick={() => updateCartItemQuantity(item.id, item.counterId, item.quantity + 1)}
-                            disabled={item.quantity >= (countersStock[item.counterId] ?? 0) + item.quantity}
+                            disabled={item.quantity <= 0}
                           >
                             <Plus className="h-3 w-3" />
                             <span className="sr-only">Increase</span>
