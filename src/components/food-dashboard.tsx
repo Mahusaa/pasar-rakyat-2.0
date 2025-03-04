@@ -15,7 +15,6 @@ import { ShoppingBag } from "lucide-react"
 import { useUser } from "~/server/auth";
 import { database } from "~/server/firebase"
 import { ScrollArea } from "@radix-ui/react-scroll-area";
-import { foodCounters } from "~/lib/mock-data";
 
 // Define interfaces for Firebase data structure
 interface FirebaseFoodItem {
