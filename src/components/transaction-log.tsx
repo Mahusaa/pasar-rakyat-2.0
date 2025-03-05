@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useActionState, startTransition, use, useEffect } from "react"
-import { CalendarIcon, Check, Download, Filter, Search } from "lucide-react"
+import { useState, useActionState, startTransition, use } from "react"
+import { CalendarIcon, Check, Download, Search } from "lucide-react"
 import { format } from "date-fns"
 import { jsPDF } from "jspdf"
 import autoTable from "jspdf-autotable"
@@ -34,26 +34,7 @@ export default function TransactionLog({ orders }: { orders: Order[] }) {
   const [cashierFilter, setCashierFilter] = useState("all")
   const [paymentFilter, setPaymentFilter] = useState("all")
   const [date, setDate] = useState<Date | undefined>(undefined)
-  const [filteredTransactions, setFilteredTransactions] = useState(orders)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(10)
 
-
-  // Calculate pagination values
-  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage)
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const endIndex = startIndex + itemsPerPage
-  const currentTransactions = filteredTransactions.slice(startIndex, endIndex)
-
-  const goToPage = (page: number) => {
-    setCurrentPage(Math.max(1, Math.min(page, totalPages)))
-  }
-
-  // Handle items per page changes
-  const handleItemsPerPageChange = (value: string) => {
-    setItemsPerPage(Number(value))
-    setCurrentPage(1) // Reset to first page when changing items per page
-  }
 
   const confirmQrisPayment = async (id: number) => {
     startTransition(() => {
@@ -69,6 +50,8 @@ export default function TransactionLog({ orders }: { orders: Order[] }) {
 
     return isCashierMatch && isPaymentMatch && isDateMatch && isIDMatch
   })
+
+  const totalPrice = filteredLogs.reduce((acc, order) => acc + order.amount, 0)
 
   // Format currency
   const formatCurrency = (amount: number) => {
@@ -189,7 +172,7 @@ export default function TransactionLog({ orders }: { orders: Order[] }) {
           <Card>
             <CardHeader>
               <CardTitle>Transaction History</CardTitle>
-              <CardDescription>Showing {filteredLogs.length} transactions</CardDescription>
+              <CardDescription>Showing {filteredLogs.length} transactions, with total: Rp.{Number(totalPrice)}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="border rounded-md">
