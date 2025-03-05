@@ -172,7 +172,7 @@ export default function TransactionLog({ orders }: { orders: Order[] }) {
           <Card>
             <CardHeader>
               <CardTitle>Transaction History</CardTitle>
-              <CardDescription>Showing {filteredLogs.length} transactions, with total: Rp.{Number(totalPrice)}</CardDescription>
+              <CardDescription>Showing {filteredLogs.length} transactions, with total: {formatCurrency(Number(totalPrice))}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="border rounded-md">
