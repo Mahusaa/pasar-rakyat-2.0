@@ -1,6 +1,6 @@
 "use client"
 
-import { use, useState, useEffect, useMemo } from "react"
+import { use, useState, useEffect, useMemo, useRef } from "react"
 import { Search } from "lucide-react"
 import { useCart } from "~/lib/cart-context"
 import { ref, onValue, type DataSnapshot } from 'firebase/database';
@@ -47,6 +47,21 @@ export default function FoodDashboard() {
   const { cartItems, cartTotal } = useCart()
   const { userPromise } = useUser()
   const user = use(userPromise)
+  const inputRef = useRef<HTMLInputElement>(null);
+
+
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === "f") {
+        e.preventDefault(); // Prevent browser search
+        inputRef.current?.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
 
   useEffect(() => {
@@ -158,6 +173,7 @@ export default function FoodDashboard() {
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
                     type="search"
+                    ref={inputRef}
                     placeholder="Cari dagangan"
                     className="pl-8"
                     value={searchQuery}
