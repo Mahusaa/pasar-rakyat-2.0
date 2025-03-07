@@ -68,7 +68,6 @@ export default function FoodDashboard() {
     // Reference to 'foodCounters' in the database
     const foodCountersRef = ref(database, 'foodCounters');
 
-    // Set up a listener for real-time updates
     const unsubscribe = onValue(foodCountersRef, (snapshot: DataSnapshot) => {
       const data = snapshot.val() as FirebaseFoodCounters || {};
 
@@ -141,21 +140,12 @@ export default function FoodDashboard() {
     }
 
     // Apply sorting
-    if (sortBy === "price-high") {
-      result = result.map((counter) => {
-        return {
-          ...counter,
-          items: [...counter.items].sort((a, b) => b.price - a.price),
-        }
-      })
-    } else if (sortBy === "price-low") {
-      result = result.map((counter) => {
-        return {
-          ...counter,
-          items: [...counter.items].sort((a, b) => a.price - b.price),
-        }
-      })
+    if (sortBy === "stock-high") {
+      result = [...result].sort((a, b) => b.stock - a.stock)
+    } else if (sortBy === "stock-low") {
+      result = [...result].sort((a, b) => a.stock - b.stock)
     }
+
 
     return result
   }, [counters, searchQuery, sortBy])
@@ -186,8 +176,8 @@ export default function FoodDashboard() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="default">Default</SelectItem>
-                    <SelectItem value="price-high">Highest Price</SelectItem>
-                    <SelectItem value="price-low">Lowest Price</SelectItem>
+                    <SelectItem value="stock-high">Highest Stock</SelectItem>
+                    <SelectItem value="stock-low">Lowest Stock</SelectItem>
                   </SelectContent>
                 </Select>
                 <div>
