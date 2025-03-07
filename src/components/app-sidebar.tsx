@@ -1,6 +1,6 @@
 "use client"
 import * as React from "react"
-import { Utensils, FileClock, ShoppingBag } from "lucide-react"
+import { Utensils, FileClock, ShoppingBag, ChartArea } from "lucide-react"
 import { Suspense } from "react"
 
 import {
@@ -30,7 +30,11 @@ const items = [
     url: "/logs",
     icon: FileClock,
   },
-
+  {
+    title: "Analitik",
+    url: "/analytics",
+    icon: ChartArea,
+  },
 ]
 
 export function AppSidebar() {

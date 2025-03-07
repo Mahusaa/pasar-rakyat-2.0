@@ -58,4 +58,8 @@ export async function getOrders() {
   return order
 }
 
-
+export async function getOrdersDefault() {
+  const order = await db.query.logs.findMany({
+  })
+  return order
+}

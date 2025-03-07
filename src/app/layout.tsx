@@ -19,7 +19,7 @@ export default function RootLayout({
   let userPromise = getUser().then((user) => user ?? null);
   return (
     <html lang="en" className={`${GeistSans.variable}`}>
-      <body className="bg-gradient-to-br from-orange-50 to-white h-screen flex flex-col">
+      <body className="bg-white h-screen flex flex-col">
         <UserProvider userPromise={userPromise}>
           {children}
           <Toaster position="top-center" />

@@ -175,7 +175,7 @@ export default function FoodDashboard() {
                     <SelectValue placeholder="Sort by" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="default">Default</SelectItem>
+                    <SelectItem value="default">Stock (Default)</SelectItem>
                     <SelectItem value="stock-high">Highest Stock</SelectItem>
                     <SelectItem value="stock-low">Lowest Stock</SelectItem>
                   </SelectContent>
