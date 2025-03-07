@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { verifyToken, signToken } from './server/auth/session';
 
-const authRoutes = ['/dashboard', '/logs'];
-const adminRoutes = ['/analytics'];
+const authRoutes = ['/dashboard', '/logs', '/analytics'];
+const adminRoutes = ['/analytic'];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
