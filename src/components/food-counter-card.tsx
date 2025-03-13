@@ -27,7 +27,7 @@ export default function FoodCounterCard({ counter }: FoodCounterCardProps) {
             <div className="flex items-center justify-between">
               <CardTitle>{counter.name}</CardTitle>
               <Badge
-                className={cn(counter.stock > 5 ? "bg-green-500" : counter.stock > 2 ? "bg-amber-500" : "bg-red-500")}
+                className={cn(counter.stock > 0 ? "bg-green-500" : "bg-red-500")}
               >
                 Stock: {counter.stock}
               </Badge>
